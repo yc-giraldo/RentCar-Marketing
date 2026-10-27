@@ -108,3 +108,158 @@ png(
 grid::grid.newpage()
 grid::grid.draw(grafica_tabla)
 dev.off()
+
+
+# =====================================
+# PUNTO 2 - AGREGACION DE AMAZON
+# =====================================
+
+# Crear seis variables agregadas
+datos_amazon <- datos |>
+  mutate(
+    Amazon_DSP_Cost =
+      rowSums(pick(matches("^DSP.*\\.Cost$"))),
+
+    Amazon_DSP_Impressions =
+      rowSums(pick(matches("^DSP.*\\.Impression$"))),
+
+    Amazon_Search_Cost =
+      rowSums(pick(matches("^Search.*\\.Cost$"))),
+
+    Amazon_Search_Impressions =
+      rowSums(pick(matches("^Search.*\\.Impression$"))),
+
+    Amazon_Sponsored_Cost =
+      rowSums(pick(matches("^Sponsored.*\\.Cost$"))),
+
+    Amazon_Sponsored_Impressions =
+      rowSums(pick(matches("^Sponsored.*\\.Impression$")))
+  )
+
+# Mostrar primeras seis semanas
+datos_amazon |>
+  select(Week, starts_with("Amazon_")) |>
+  slice_head(n = 6) |>
+  print(width = Inf)
+# Verificar manualmente las dos primeras semanas
+verificacion <- datos_amazon |>
+  slice_head(n = 2) |>
+  select(Week, starts_with("Amazon_"))
+
+print(verificacion, width = Inf)
+
+# Guardar nueva base procesada
+write_csv(
+  datos_amazon,
+  "Base_RentCar_Amazon.csv"
+)
+
+# =====================================
+# VERIFICACION DEL PUNTO 2
+# =====================================
+
+# Comparar las seis sumas con los datos originales
+verificacion_sumas <- tibble(
+  variable = c(
+    "DSP Cost", "DSP Impressions",
+    "Search Cost", "Search Impressions",
+    "Sponsored Cost", "Sponsored Impressions"
+  ),
+  coincide = c(
+    isTRUE(all.equal(
+      datos_amazon$Amazon_DSP_Cost[1:2],
+      rowSums(datos[1:2, grepl("^DSP.*\\.Cost$", names(datos))])
+    )),
+    isTRUE(all.equal(
+      datos_amazon$Amazon_DSP_Impressions[1:2],
+      rowSums(datos[1:2, grepl("^DSP.*\\.Impression$", names(datos))])
+    )),
+    isTRUE(all.equal(
+      datos_amazon$Amazon_Search_Cost[1:2],
+      rowSums(datos[1:2, grepl("^Search.*\\.Cost$", names(datos))])
+    )),
+    isTRUE(all.equal(
+      datos_amazon$Amazon_Search_Impressions[1:2],
+      rowSums(datos[1:2, grepl("^Search.*\\.Impression$", names(datos))])
+    )),
+    isTRUE(all.equal(
+      datos_amazon$Amazon_Sponsored_Cost[1:2],
+      rowSums(datos[1:2, grepl("^Sponsored.*\\.Cost$", names(datos))])
+    )),
+    isTRUE(all.equal(
+      datos_amazon$Amazon_Sponsored_Impressions[1:2],
+      rowSums(datos[1:2, grepl("^Sponsored.*\\.Impression$", names(datos))])
+    ))
+  )
+)
+
+print(verificacion_sumas)
+
+
+# =====================================
+# TABLA PNG - PUNTO 2
+# =====================================
+
+library(gridExtra)
+library(grid)
+
+# Tabla de las primeras dos semanas
+tabla_punto2 <- datos_amazon |>
+  select(Week, starts_with("Amazon_")) |>
+  slice_head(n = 2) |>
+  mutate(
+    Week = as.character(Week),
+    across(starts_with("Amazon_"), ~round(.x, 2))
+  )
+
+# Crear imagen
+imagen_punto2 <- tableGrob(
+  tabla_punto2,
+  rows = NULL
+)
+
+png(
+  "Tabla_Agregacion_Amazon.png",
+  width = 3000,
+  height = 650,
+  res = 180
+)
+
+grid.newpage()
+grid.draw(imagen_punto2)
+dev.off()
+
+# =====================================
+# TABLA PNG - PUNTO 2
+# =====================================
+
+library(gridExtra)
+library(grid)
+
+# Tabla de las primeras dos semanas
+tabla_punto2 <- datos_amazon |>
+  select(Week, starts_with("Amazon_")) |>
+  slice_head(n = 2) |>
+  mutate(
+    Week = as.character(Week),
+    across(starts_with("Amazon_"), ~round(.x, 2))
+  )
+# Crear imagen
+imagen_punto2 <- tableGrob(
+  tabla_punto2,
+  rows = NULL
+)
+
+png(
+  "Tabla_Agregacion_Amazon.png",
+  width = 3000,
+  height = 650,
+  res = 180
+)
+
+
+grid.newpage()
+
+grid.draw(imagen_punto2)
+
+dev.off()
