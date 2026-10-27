@@ -235,7 +235,6 @@ dev.off()
 
 library(gridExtra)
 library(grid)
-
 # Tabla de las primeras dos semanas
 tabla_punto2 <- datos_amazon |>
   select(Week, starts_with("Amazon_")) |>
@@ -249,17 +248,54 @@ imagen_punto2 <- tableGrob(
   tabla_punto2,
   rows = NULL
 )
-
 png(
   "Tabla_Agregacion_Amazon.png",
   width = 3000,
   height = 650,
   res = 180
 )
-
-
 grid.newpage()
-
 grid.draw(imagen_punto2)
-
 dev.off()
+
+#PUNTO 3
+head(trends_nonbrand)
+head(trends_brand)
+
+
+# PUNTO 3 - GOOGLE TRENDS
+
+trends_nonbrand <- read_csv(
+  "GoogleTrends_NonBrand.csv",
+  show_col_types = FALSE
+)
+
+trends_brand <- read_csv(
+  "GoogleTrends_Brand.csv",
+  show_col_types = FALSE
+)
+
+head(trends_nonbrand)
+head(trends_brand)
+
+
+# =====================================
+# PUNTO 3 - INTEGRAR GOOGLE TRENDS
+# =====================================
+
+# Integrar Google Trends con RentCar
+datos_ampliados <- datos_amazon |>
+  mutate(Mes = lubridate::floor_date(Week, "month")) |>
+  left_join(trends_completo, by = "Mes")
+
+# Comprobar dimensiones
+dim(datos_ampliados)
+
+# Revisar las primeras semanas
+datos_ampliados |>
+  select(Week, Brand, NonBrand) |>
+  head(10)
+
+# Revisar datos faltantes
+sum(is.na(datos_ampliados$Brand))
+sum(is.na(datos_ampliados$NonBrand))
