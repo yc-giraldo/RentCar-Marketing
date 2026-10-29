@@ -75,6 +75,29 @@ ggsave(
 library(gridExtra)
 library(grid)
 
+# Seleccionar columnas de publicidad
+columnas_publicidad <- datos |>
+  select(matches("\\.(Cost|Impression)$"))
+
+# Calcular rangos y valores negativos
+rangos_publicidad <- columnas_publicidad |>
+  summarise(
+    across(
+      everything(),
+      list(
+        minimo = ~min(.x, na.rm = TRUE),
+        maximo = ~max(.x, na.rm = TRUE),
+        negativos = ~sum(.x < 0, na.rm = TRUE)
+      ),
+      .names = "{.col}_{.fn}"
+    )
+  ) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "resultado"
+  )
+
 # Preparar tabla
 tabla_imagen <- rangos_publicidad |>
   mutate(
@@ -278,24 +301,186 @@ trends_brand <- read_csv(
 head(trends_nonbrand)
 head(trends_brand)
 
-
 # =====================================
 # PUNTO 3 - INTEGRAR GOOGLE TRENDS
 # =====================================
+library(tidyverse)
 
-# Integrar Google Trends con RentCar
+datos_amazon <- read_csv(
+  "Base_RentCar_Amazon.csv",
+  show_col_types = FALSE
+)
+
+dim(datos_amazon)
+
+library(tidyverse)
+library(lubridate)
+
+# Importar archivos de Google Trends
+trends_brand <- read_csv(
+  "GoogleTrends_Brand.csv",
+  show_col_types = FALSE
+)
+
+trends_nonbrand <- read_csv(
+  "GoogleTrends_NonBrand.csv",
+  show_col_types = FALSE
+)
+
+# Preparar las fechas y los indices
+brand <- trends_brand |>
+  transmute(
+    Mes = as.Date(paste0(substr(Time, 1, 7), "-01")),
+    Brand = as.numeric(.data[[names(trends_brand)[2]]])
+  )
+
+nonbrand <- trends_nonbrand |>
+  transmute(
+    Mes = as.Date(paste0(substr(Time, 1, 7), "-01")),
+    NonBrand = as.numeric(.data[[names(trends_nonbrand)[2]]])
+  )
+
+# Unir las dos series de Google Trends
+trends_completo <- brand |>
+  left_join(nonbrand, by = "Mes")
+
+# Integrar con la base de Amazon
 datos_ampliados <- datos_amazon |>
-  mutate(Mes = lubridate::floor_date(Week, "month")) |>
+  mutate(
+    Week = as.Date(Week),
+    Mes = floor_date(Week, "month")
+  ) |>
   left_join(trends_completo, by = "Mes")
 
 # Comprobar dimensiones
 dim(datos_ampliados)
 
-# Revisar las primeras semanas
+# Revisar primeras observaciones
 datos_ampliados |>
   select(Week, Brand, NonBrand) |>
-  head(10)
+  head(10) |>
+  print()
 
-# Revisar datos faltantes
+# Verificar valores faltantes
 sum(is.na(datos_ampliados$Brand))
 sum(is.na(datos_ampliados$NonBrand))
+
+# Comprobar que no cambie el numero de filas
+stopifnot(nrow(datos_ampliados) == nrow(datos_amazon))
+
+
+# =====================================
+# PUNTO 3 - VARIABLES ECONOMICAS FRED
+# =====================================
+
+# Importar solicitudes de desempleo
+icsa <- read_csv(
+  "ICSA.csv",
+  show_col_types = FALSE
+)
+
+# Importar precio de gasolina
+gasolina <- read_csv(
+  "GASREGW.csv",
+  show_col_types = FALSE
+)
+
+# Revisar estructura y fechas
+head(icsa)
+head(gasolina)
+
+tail(icsa)
+tail(gasolina)
+
+# =====================================
+# PUNTO 3 - INTEGRAR VARIABLES FRED
+# =====================================
+
+# Preparar ICSA
+icsa_limpio <- icsa |>
+  transmute(
+    Week = as.Date(observation_date) + 8,
+    ICSA = as.numeric(ICSA)
+  )
+
+# Preparar gasolina mensual
+gasolina_limpia <- gasolina |>
+  transmute(
+    Mes = as.Date(observation_date) %m+% months(1),
+    GASREGW = as.numeric(GASREGW)
+  )
+
+# Unir con la base ampliada
+datos_finales <- datos_ampliados |>
+  left_join(icsa_limpio, by = "Week") |>
+  left_join(gasolina_limpia, by = "Mes")
+
+# Verificar dimensiones
+dim(datos_finales)
+
+# Verificar valores faltantes
+datos_finales |>
+  summarise(
+    faltantes_ICSA = sum(is.na(ICSA)),
+    faltantes_GASREGW = sum(is.na(GASREGW))
+  ) |>
+  print()
+
+# Mostrar primeras observaciones
+datos_finales |>
+  select(Week, Sales, Orders,
+         Brand, NonBrand, ICSA, GASREGW) |>
+  head(10) |>
+  print()
+
+# Comprobar que se mantienen las semanas
+stopifnot(nrow(datos_finales) == 135)
+# =====================================
+# GUARDAR BASE FINAL - PUNTO 3
+# =====================================
+
+write_csv(
+  datos_finales,
+  "Base_RentCar_Final.csv"
+)
+
+# =====================================
+# PUNTO 3 - AJUSTE TEMPORAL Y VALIDACION
+# =====================================
+
+# Usar tendencias del mes anterior
+trends_rezagados <- trends_completo |>
+  mutate(Mes = Mes %m+% months(1))
+
+# Reconstruir la base con controles rezagados
+datos_finales <- datos_amazon |>
+  mutate(
+    Week = as.Date(Week),
+    Mes = floor_date(Week, "month")
+  ) |>
+  left_join(trends_rezagados, by = "Mes") |>
+  left_join(icsa_limpio, by = "Week") |>
+  left_join(gasolina_limpia, by = "Mes")
+
+# Verificar dimensiones
+dim(datos_finales)
+
+# Verificar duplicados
+sum(duplicated(datos_finales$Week))
+
+# Verificar faltantes
+datos_finales |>
+  summarise(
+    N = n(),
+    Faltantes_Brand = sum(is.na(Brand)),
+    Faltantes_NonBrand = sum(is.na(NonBrand)),
+    Faltantes_ICSA = sum(is.na(ICSA)),
+    Faltantes_GASREGW = sum(is.na(GASREGW))
+  ) |>
+  print()
+
+# Guardar la base actualizada
+write_csv(
+  datos_finales,
+  "Base_RentCar_Final.csv"
+)
