@@ -1144,3 +1144,210 @@ dev.off()
 
 # Mostrar tabla en R
 print(tabla_regresiones)
+
+
+# =====================================
+# PUNTO 6 - REGRESIONES MULTIPLES
+# =====================================
+
+library(tidyverse)
+
+# Cargar base final
+datos_p6 <- read_csv(
+  "Base_RentCar_Final.csv",
+  show_col_types = FALSE
+)
+
+# Seleccionar variables para los modelos
+variables_p6 <- c(
+  "Sales",
+  "Orders",
+  "Amazon_DSP_Cost",
+  "Amazon_Search_Cost",
+  "Amazon_Sponsored_Cost",
+  "SP500",
+  "WEI",
+  "Brand",
+  "NonBrand",
+  "ICSA",
+  "GASREGW"
+)
+
+# Usar una muestra comun sin faltantes
+datos_modelos <- datos_p6 |>
+  select(all_of(variables_p6)) |>
+  drop_na()
+
+# Comprobar observaciones
+nrow(datos_modelos)
+
+# Modelo multiple de ventas
+modelo_multiple_sales <- lm(
+  Sales ~
+    Amazon_DSP_Cost +
+    Amazon_Search_Cost +
+    Amazon_Sponsored_Cost +
+    SP500 +
+    WEI +
+    Brand +
+    NonBrand +
+    ICSA +
+    GASREGW,
+  data = datos_modelos
+)
+
+# Modelo multiple de ordenes
+modelo_multiple_orders <- lm(
+  Orders ~
+    Amazon_DSP_Cost +
+    Amazon_Search_Cost +
+    Amazon_Sponsored_Cost +
+    SP500 +
+    WEI +
+    Brand +
+    NonBrand +
+    ICSA +
+    GASREGW,
+  data = datos_modelos
+)
+
+# Mostrar resultados
+summary(modelo_multiple_sales)
+summary(modelo_multiple_orders)
+
+# Intervalos de confianza del 95%
+confint(modelo_multiple_sales)
+confint(modelo_multiple_orders)
+
+# =====================================
+# PUNTO 6 - TABLA COMPARATIVA
+# =====================================
+
+library(tidyverse)
+library(gridExtra)
+library(grid)
+
+# Extraer coeficientes de cada modelo
+extraer_p6 <- function(modelo, nombre) {
+  resultado <- summary(modelo)$coefficients
+
+  tibble(
+    Variable = rownames(resultado),
+    Modelo = nombre,
+    Coeficiente = resultado[, 1],
+    Error_Estandar = resultado[, 2],
+    Valor_p = resultado[, 4]
+  )
+}
+
+# Unir resultados
+tabla_p6 <- bind_rows(
+  extraer_p6(modelo_multiple_sales, "Sales"),
+  extraer_p6(modelo_multiple_orders, "Orders")
+)
+
+# Guardar resultados originales
+write_csv(
+  tabla_p6,
+  "Punto6_Regresiones_Multiples.csv"
+)
+
+# Dar formato a la tabla
+tabla_p6_formato <- tabla_p6 |>
+  mutate(
+    Coeficiente = format(
+      round(Coeficiente, 4),
+      scientific = FALSE,
+      big.mark = ".",
+      decimal.mark = ",",
+      trim = TRUE
+    ),
+    Error_Estandar = format(
+      round(Error_Estandar, 4),
+      scientific = FALSE,
+      big.mark = ".",
+      decimal.mark = ",",
+      trim = TRUE
+    ),
+    Valor_p = if_else(
+      Valor_p < 0.001,
+      "< 0,001",
+      format(
+        round(Valor_p, 4),
+        decimal.mark = ",",
+        trim = TRUE
+      )
+    )
+  )
+
+# Crear imagen con el tema del punto 4
+imagen_p6 <- gridExtra::tableGrob(
+  tabla_p6_formato,
+  rows = NULL,
+  theme = tema_tabla
+)
+
+png(
+  "Punto6_Tabla_Regresiones.png",
+  width = 2200,
+  height = 1800,
+  res = 170
+)
+
+grid::grid.newpage()
+grid::grid.draw(imagen_p6)
+dev.off()
+
+print(tabla_p6)
+
+
+# =====================================
+# PUNTO 6 - RESULTADOS COMPLEMENTARIOS
+# =====================================
+
+# Resumen de los modelos
+resumen_p6 <- tibble(
+  Modelo = c("Sales", "Orders"),
+  N = c(nobs(modelo_multiple_sales),
+        nobs(modelo_multiple_orders)),
+  R2 = c(summary(modelo_multiple_sales)$r.squared,
+         summary(modelo_multiple_orders)$r.squared),
+  R2_Ajustado = c(
+    summary(modelo_multiple_sales)$adj.r.squared,
+    summary(modelo_multiple_orders)$adj.r.squared
+  ),
+  Valor_p_Global = c(
+    pf(summary(modelo_multiple_sales)$fstatistic[1],
+       summary(modelo_multiple_sales)$fstatistic[2],
+       summary(modelo_multiple_sales)$fstatistic[3],
+       lower.tail = FALSE),
+    pf(summary(modelo_multiple_orders)$fstatistic[1],
+       summary(modelo_multiple_orders)$fstatistic[2],
+       summary(modelo_multiple_orders)$fstatistic[3],
+       lower.tail = FALSE)
+  )
+)
+
+print(resumen_p6)
+
+write_csv(
+  resumen_p6,
+  "Punto6_Resumen_Modelos.csv"
+)
+
+# Guardar intervalos del 95 %
+intervalos_p6 <- bind_rows(
+  as_tibble(
+    confint(modelo_multiple_sales),
+    rownames = "Variable"
+  ) |> mutate(Modelo = "Sales"),
+  as_tibble(
+    confint(modelo_multiple_orders),
+    rownames = "Variable"
+  ) |> mutate(Modelo = "Orders")
+)
+
+write_csv(
+  intervalos_p6,
+  "Punto6_Intervalos_Confianza.csv"
+)
