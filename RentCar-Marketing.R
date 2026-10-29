@@ -484,3 +484,536 @@ write_csv(
   datos_finales,
   "Base_RentCar_Final.csv"
 )
+
+
+# =====================================
+# PUNTO 4 - EXPLORACION Y DESCRIPTIVOS
+# =====================================
+
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+
+# Cargar base final del punto 3
+datos_p4 <- read_csv(
+  "Base_RentCar_Final.csv",
+  show_col_types = FALSE
+)
+
+# Preparar fechas
+datos_p4 <- datos_p4 |>
+  mutate(Week = as.Date(Week)) |>
+  arrange(Week)
+
+# Comprobar dimensiones
+dim(datos_p4)
+
+# Revisar variables disponibles
+names(datos_p4)
+
+# Revisar faltantes en los controles
+datos_p4 |>
+  summarise(
+    Brand = sum(is.na(Brand)),
+    NonBrand = sum(is.na(NonBrand)),
+    ICSA = sum(is.na(ICSA)),
+    GASREGW = sum(is.na(GASREGW))
+  ) |>
+  print()
+
+
+# =====================================
+# PUNTO 4 - TABLA DESCRIPTIVA
+# =====================================
+
+# Variables solicitadas por el profesor
+variables_p4 <- c(
+  "Sales", "Orders",
+  "Amazon_DSP_Cost",
+  "Amazon_DSP_Impressions",
+  "Amazon_Search_Cost",
+  "Amazon_Search_Impressions",
+  "Amazon_Sponsored_Cost",
+  "Amazon_Sponsored_Impressions",
+  "SP500", "WEI",
+  "Brand", "NonBrand",
+  "ICSA", "GASREGW"
+)
+
+# Verificar que todas existan
+stopifnot(all(variables_p4 %in% names(datos_p4)))
+
+# Calcular estadisticas descriptivas
+tabla_descriptiva <- datos_p4 |>
+  select(all_of(variables_p4)) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "Variable",
+    values_to = "Valor"
+  ) |>
+  group_by(Variable) |>
+  summarise(
+    N = sum(!is.na(Valor)),
+    Media = mean(Valor, na.rm = TRUE),
+    Desviacion = sd(Valor, na.rm = TRUE),
+    Minimo = min(Valor, na.rm = TRUE),
+    Maximo = max(Valor, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    Variable = factor(
+      Variable,
+      levels = variables_p4
+    )
+  ) |>
+  arrange(Variable) |>
+  mutate(
+    Variable = as.character(Variable),
+    across(
+      c(Media, Desviacion, Minimo, Maximo),
+      ~round(.x, 2)
+    )
+  )
+
+# Mostrar resultados
+print(tabla_descriptiva, n = Inf)
+
+# Guardar tabla como CSV
+write_csv(
+  tabla_descriptiva,
+  "Punto4_Tabla_Descriptiva.csv"
+)
+
+
+# =====================================
+# PUNTO 4 - TABLA DESCRIPTIVA PNG
+# =====================================
+
+library(gridExtra)
+library(grid)
+
+# Formato de tabla
+tema_tabla <- ttheme_minimal(
+  base_size = 10,
+  core = list(
+    fg_params = list(col = "#333038"),
+    bg_params = list(
+      fill = c("#FAF5F7", "#F2DCE5"),
+      col = NA
+    )
+  ),
+  colhead = list(
+    fg_params = list(
+      col = "white",
+      fontface = "bold"
+    ),
+    bg_params = list(
+      fill = "#6F2946",
+      col = NA
+    )
+  )
+)
+
+# Crear tabla grafica
+imagen_descriptiva <- tableGrob(
+  tabla_descriptiva,
+  rows = NULL,
+  theme = tema_tabla
+)
+
+# Exportar tabla descriptiva en PNG
+png(
+  "Punto4_Tabla_Descriptiva.png",
+  width = 1900,
+  height = 1050,
+  res = 150
+)
+
+grid::grid.newpage()
+grid::grid.draw(imagen_descriptiva)
+dev.off()
+
+
+# =====================================
+# PUNTO 4 - SERIES TEMPORALES
+# =====================================
+
+library(ggplot2)
+library(scales)
+
+# Grafica de ventas semanales
+grafica_sales <- ggplot(
+  datos_p4,
+  aes(x = Week, y = Sales)
+) +
+  geom_line(
+    color = "#6F2946",
+    linewidth = 1
+  ) +
+  labs(
+    title = "Evolución semanal de las ventas",
+    subtitle = "RentCar Marketing | 2024 - 2026",
+    x = "Semana",
+    y = "Ventas"
+  ) +
+  scale_y_continuous(
+    labels = label_number(
+      big.mark = ".",
+      decimal.mark = ","
+    )
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      color = "#6F2946"
+    ),
+    plot.subtitle = element_text(
+      color = "#B87591"
+    ),
+    panel.grid.minor = element_blank()
+  )
+
+# Guardar grafica de ventas
+ggsave(
+  "Punto4_Ventas_Semanales.png",
+  plot = grafica_sales,
+  width = 11,
+  height = 6,
+  dpi = 300
+)
+
+# Grafica de ordenes semanales
+grafica_orders <- ggplot(
+  datos_p4,
+  aes(x = Week, y = Orders)
+) +
+  geom_line(
+    color = "#B87591",
+    linewidth = 1
+  ) +
+  labs(
+    title = "Evolución semanal de las órdenes",
+    subtitle = "RentCar Marketing | 2024 - 2026",
+    x = "Semana",
+    y = "Órdenes"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      color = "#6F2946"
+    ),
+    plot.subtitle = element_text(
+      color = "#B87591"
+    ),
+    panel.grid.minor = element_blank()
+  )
+
+# Guardar grafica de ordenes
+ggsave(
+  "Punto4_Ordenes_Semanales.png",
+  plot = grafica_orders,
+  width = 11,
+  height = 6,
+  dpi = 300
+)
+
+# Mostrar graficas
+print(grafica_sales)
+print(grafica_orders)
+
+
+# =====================================
+# PUNTO 4 - COSTOS POR CANAL AMAZON
+# =====================================
+
+# Preparar datos de costos
+costos_amazon <- datos_p4 |>
+  select(
+    Week,
+    Amazon_DSP_Cost,
+    Amazon_Search_Cost,
+    Amazon_Sponsored_Cost
+  ) |>
+  pivot_longer(
+    cols = -Week,
+    names_to = "Canal",
+    values_to = "Costo"
+  ) |>
+  mutate(
+    Canal = recode(
+      Canal,
+      Amazon_DSP_Cost = "Amazon DSP",
+      Amazon_Search_Cost = "Amazon Search",
+      Amazon_Sponsored_Cost = "Amazon Sponsored"
+    )
+  )
+
+# Grafica de costos por canal
+grafica_costos <- ggplot(
+  costos_amazon,
+  aes(x = Week, y = Costo, color = Canal)
+) +
+  geom_line(linewidth = 0.85) +
+  scale_color_manual(
+    values = c(
+      "Amazon DSP" = "#6F2946",
+      "Amazon Search" = "#B87591",
+      "Amazon Sponsored" = "#D6A5B8"
+    )
+  ) +
+  scale_y_continuous(
+    labels = scales::label_comma()
+  ) +
+  labs(
+    title = "Evolución de la inversión publicitaria",
+    subtitle = "Costos semanales por canal de Amazon | 2024 - 2026",
+    x = "Semana",
+    y = "Costo publicitario",
+    color = "Canal"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      color = "#6F2946"
+    ),
+    plot.subtitle = element_text(
+      color = "#B87591"
+    ),
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom"
+  )
+
+# Guardar grafica PNG
+ggsave(
+  "Punto4_Costos_Amazon.png",
+  plot = grafica_costos,
+  width = 11,
+  height = 6,
+  dpi = 300
+)
+
+print(grafica_costos)
+
+
+# =====================================
+# PUNTO 4 - DIAGRAMAS DE DISPERSION
+# =====================================
+
+# Preparar datos
+dispersion_amazon <- datos_p4 |>
+  select(
+    Sales,
+    Amazon_DSP_Cost,
+    Amazon_Search_Cost,
+    Amazon_Sponsored_Cost
+  ) |>
+  pivot_longer(
+    cols = -Sales,
+    names_to = "Canal",
+    values_to = "Costo"
+  ) |>
+  mutate(
+    Canal = recode(
+      Canal,
+      Amazon_DSP_Cost = "Amazon DSP",
+      Amazon_Search_Cost = "Amazon Search",
+      Amazon_Sponsored_Cost = "Amazon Sponsored"
+    )
+  )
+
+# Crear graficos de dispersion
+grafica_dispersion <- ggplot(
+  dispersion_amazon,
+  aes(x = Costo, y = Sales)
+) +
+  geom_point(
+    color = "#B87591",
+    alpha = 0.65,
+    size = 1.8
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = TRUE,
+    color = "#6F2946",
+    fill = "#F2DCE5"
+  ) +
+  facet_wrap(
+    ~Canal,
+    scales = "free_x",
+    ncol = 3
+  ) +
+  scale_y_continuous(
+    labels = scales::label_number(
+      scale_cut = scales::cut_short_scale()
+    )
+  ) +
+  labs(
+    title = "Relación entre ventas e inversión publicitaria",
+    subtitle = "Análisis exploratorio por canal de Amazon",
+    x = "Costo publicitario",
+    y = "Ventas"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      color = "#6F2946"
+    ),
+    plot.subtitle = element_text(
+      color = "#B87591"
+    ),
+    strip.text = element_text(
+      face = "bold",
+      color = "#6F2946"
+    ),
+    panel.grid.minor = element_blank()
+  )
+
+# Exportar PNG
+ggsave(
+  "Punto4_Dispersion_Amazon.png",
+  plot = grafica_dispersion,
+  width = 13,
+  height = 5.5,
+  dpi = 300
+)
+
+print(grafica_dispersion)
+
+
+# =====================================
+# PUNTO 4 - COVARIANZAS Y CORRELACIONES
+# =====================================
+
+library(tidyverse)
+library(ggplot2)
+
+# Seleccionar variables del analisis
+datos_matrices <- datos_p4 |>
+  select(all_of(variables_p4))
+
+# Matriz de covarianzas
+matriz_cov <- cov(
+  datos_matrices,
+  use = "pairwise.complete.obs"
+)
+
+# Matriz de correlaciones
+matriz_cor <- cor(
+  datos_matrices,
+  use = "pairwise.complete.obs"
+)
+
+# Guardar resultados numericos
+write.csv(
+  matriz_cov,
+  "Punto4_Matriz_Covarianzas.csv"
+)
+
+write.csv(
+  matriz_cor,
+  "Punto4_Matriz_Correlaciones.csv"
+)
+
+# Covarianzas de Sales con las demas variables
+cov_sales <- tibble(
+  Variable = names(matriz_cov["Sales", ]),
+  Covarianza = as.numeric(matriz_cov["Sales", ])
+) |>
+  filter(Variable != "Sales")
+
+  # Formatear covarianzas sin notacion cientifica
+cov_sales <- cov_sales |>
+  mutate(
+    Covarianza = format(
+      round(Covarianza, 2),
+      scientific = FALSE,
+      big.mark = ".",
+      decimal.mark = ",",
+      trim = TRUE
+    )
+  )
+
+# Crear tabla grafica de covarianzas
+tabla_cov <- gridExtra::tableGrob(
+  cov_sales,
+  rows = NULL,
+  theme = tema_tabla
+)
+
+png(
+  "Punto4_Covarianzas_Sales.png",
+  width = 2000,
+  height = 1400,
+  res = 170
+)
+
+grid::grid.newpage()
+grid::grid.draw(tabla_cov)
+dev.off()
+
+# Preparar correlaciones para la grafica
+cor_larga <- as.data.frame(matriz_cor) |>
+  rownames_to_column("Variable1") |>
+  pivot_longer(
+    cols = -Variable1,
+    names_to = "Variable2",
+    values_to = "Correlacion"
+  )
+
+
+# Matriz de correlaciones con valores numericos
+grafica_cor <- ggplot(
+  cor_larga,
+  aes(x = Variable1, y = Variable2, fill = Correlacion)
+) +
+  geom_tile(color = "white", linewidth = 0.3) +
+  geom_text(
+    aes(label = sprintf("%.2f", Correlacion)),
+    color = "#333038",
+    size = 2.4
+  ) +
+  scale_fill_gradient2(
+    low = "#B87591",
+    mid = "#FAF5F7",
+    high = "#6F2946",
+    midpoint = 0,
+    limits = c(-1, 1),
+    name = "Correlación"
+  ) +
+  coord_equal() +
+  labs(
+    title = "Matriz de correlaciones",
+    subtitle = "Variables de demanda, publicidad y controles",
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      color = "#6F2946"
+    ),
+    plot.subtitle = element_text(color = "#B87591"),
+    axis.text.x = element_text(
+      angle = 60,
+      hjust = 1,
+      size = 8
+    ),
+    axis.text.y = element_text(size = 8),
+    panel.grid = element_blank()
+  )
+
+# Guardar la imagen actualizada
+ggsave(
+  "Punto4_Matriz_Correlaciones.png",
+  plot = grafica_cor,
+  width = 14,
+  height = 11,
+  dpi = 300
+)
+
+print(grafica_cor)
