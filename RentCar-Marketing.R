@@ -1017,3 +1017,130 @@ ggsave(
 )
 
 print(grafica_cor)
+
+
+# =====================================
+# PUNTO 5 - REGRESIONES SIMPLES MCO
+# =====================================
+
+library(tidyverse)
+
+# Cargar base final
+datos_p5 <- read_csv(
+  "Base_RentCar_Final.csv",
+  show_col_types = FALSE
+)
+
+# Modelo 1 - Amazon DSP
+modelo_dsp <- lm(
+  Sales ~ Amazon_DSP_Cost,
+  data = datos_p5
+)
+
+# Modelo 2 - Amazon Search
+modelo_search <- lm(
+  Sales ~ Amazon_Search_Cost,
+  data = datos_p5
+)
+
+# Modelo 3 - Amazon Sponsored
+modelo_sponsored <- lm(
+  Sales ~ Amazon_Sponsored_Cost,
+  data = datos_p5
+)
+
+# Resultados de cada modelo
+summary(modelo_dsp)
+summary(modelo_search)
+summary(modelo_sponsored)
+
+# Intervalos de confianza del 95%
+confint(modelo_dsp, level = 0.95)
+confint(modelo_search, level = 0.95)
+confint(modelo_sponsored, level = 0.95)
+
+
+# =====================================
+# PUNTO 5 - COMPARACION DE REGRESIONES
+# =====================================
+
+library(gridExtra)
+library(grid)
+
+# Extraer resultados de cada modelo
+extraer_resultados <- function(modelo, canal) {
+
+  coef <- summary(modelo)$coefficients
+  intervalo <- confint(modelo)[2, ]
+
+  tibble(
+    Canal = canal,
+    Intercepto = coef[1, 1],
+    Coeficiente = coef[2, 1],
+    Error_Estandar = coef[2, 2],
+    Valor_p = coef[2, 4],
+    IC_Inf = intervalo[1],
+    IC_Sup = intervalo[2],
+    R2 = summary(modelo)$r.squared,
+    R2_Ajustado = summary(modelo)$adj.r.squared
+  )
+}
+
+# Unir los tres modelos
+tabla_regresiones <- bind_rows(
+  extraer_resultados(modelo_dsp, "Amazon DSP"),
+  extraer_resultados(modelo_search, "Amazon Search"),
+  extraer_resultados(modelo_sponsored, "Amazon Sponsored")
+)
+
+# Guardar resultados numericos originales
+write_csv(
+  tabla_regresiones,
+  "Punto5_Regresiones_Simples.csv"
+)
+
+# Dar formato a la tabla para el informe
+tabla_formato <- tabla_regresiones |>
+  mutate(
+    across(
+      c(Intercepto, Coeficiente, Error_Estandar,
+        IC_Inf, IC_Sup, R2, R2_Ajustado),
+      ~format(
+        round(.x, 3),
+        scientific = FALSE,
+        big.mark = ".",
+        decimal.mark = ",",
+        trim = TRUE
+      )
+    ),
+    Valor_p = if_else(
+      Valor_p < 0.001,
+      "< 0,001",
+      format(
+        round(Valor_p, 4),
+        decimal.mark = ",",
+        trim = TRUE
+      )
+    )
+  )
+
+# Crear tabla PNG
+tabla_p5 <- gridExtra::tableGrob(
+  tabla_formato,
+  rows = NULL,
+  theme = tema_tabla
+)
+
+png(
+  "Punto5_Tabla_Regresiones.png",
+  width = 2800,
+  height = 950,
+  res = 180
+)
+
+grid::grid.newpage()
+grid::grid.draw(tabla_p5)
+dev.off()
+
+# Mostrar tabla en R
+print(tabla_regresiones)
