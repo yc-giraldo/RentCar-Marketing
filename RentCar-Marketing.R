@@ -1396,3 +1396,72 @@ modelo_dummy_orders <- lm(
 
 summary(modelo_dummy_sales)
 summary(modelo_dummy_orders)
+
+# =====================================
+# PUNTO 8 - DIAGNOSTICO Y MEJORA
+# =====================================
+
+library(car) # Para VIF y pruebas de heterocedasticidad
+library(lmtest)
+
+# 1. Evaluación de Multicolinealidad (VIF)
+vif_valores <- vif(modelo_multiple_sales)
+print(vif_valores)
+
+# Guardar VIF 
+tabla_vif <- tibble(
+  Variable = names(vif_valores),
+  VIF = as.numeric(vif_valores)
+)
+write_csv(tabla_vif, "Punto8_VIF_Sales.csv")
+
+# 2. Diagnóstico de Heterocedasticidad 
+bptest_resultado <- bptest(modelo_multiple_sales)
+print(bptest_resultado)
+
+# 3. Gráficos de Residuos 
+residuos_df <- tibble(
+  Ajustados = fitted(modelo_multiple_sales),
+  Residuos = residuals(modelo_multiple_sales),
+  Tiempo = datos_p7$Week
+)
+
+# Gráfico Residuos vs Valores Ajustados
+grafica_res_ajustados <- ggplot(residuos_df, aes(x = Ajustados, y = Residuos)) +
+  geom_point(color = "#6F2946", alpha = 0.7, size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#B87591", linewidth = 1) +
+  labs(
+    title = "Residuos vs. Valores Ajustados",
+    subtitle = "Modelo MCO Múltiple de Ventas | Diagnóstico de Homocedasticidad",
+    x = "Valores Ajustados",
+    y = "Residuos Estudiantizados / Ordinarios"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", color = "#6F2946"),
+    plot.subtitle = element_text(color = "#B87591"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("Punto8_Residuos_Ajustados.png", plot = grafica_res_ajustados, width = 10, height = 6, dpi = 300)
+
+# Gráfico Residuos vs Tiempo
+grafica_res_tiempo <- ggplot(residuos_df, aes(x = Tiempo, y = Residuos)) +
+  geom_line(color = "#B87591", linewidth = 0.9) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#6F2946", linewidth = 1) +
+  labs(
+    title = "Evolución temporal de los residuos",
+    subtitle = "Detección visual de autocorrelación o estacionalidad residual",
+    x = "Semana",
+    y = "Residuos"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", color = "#6F2946"),
+    plot.subtitle = element_text(color = "#B87591"),
+    panel.grid.minor = element_blank()
+  )
+
+ggsave("Punto8_Residuos_Tiempo.png", plot = grafica_res_tiempo, width = 10, height = 6, dpi = 300)
+
+#El punto 9 se encuentra en el informe de word
