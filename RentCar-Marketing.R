@@ -1357,6 +1357,10 @@ write_csv(
 # PUNTO 7 - DOS CAMINOS PARA EXAMINAR LOS PICOS DE TEMPORADA ALTA
 # =====================================
 
+# 1. Vincular correctamente la base limpia del punto 6 y conservar la columna Week
+datos_p7 <- datos_modelos |>
+  mutate(Week = datos_p6 |> drop_na(all_of(variables_p6)) |> pull(Week))
+
 # Camino A: Transformación logarítmica de la variable dependiente (Sales y Orders)
 modelo_log_sales <- lm(
   log(Sales) ~ Amazon_DSP_Cost + Amazon_Search_Cost + Amazon_Sponsored_Cost +
@@ -1396,6 +1400,7 @@ modelo_dummy_orders <- lm(
 
 summary(modelo_dummy_sales)
 summary(modelo_dummy_orders)
+
 
 # =====================================
 # PUNTO 8 - DIAGNOSTICO Y MEJORA
