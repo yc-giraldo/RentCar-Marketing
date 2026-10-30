@@ -281,11 +281,6 @@ grid.newpage()
 grid.draw(imagen_punto2)
 dev.off()
 
-#PUNTO 3
-head(trends_nonbrand)
-head(trends_brand)
-
-
 # PUNTO 3 - GOOGLE TRENDS
 
 trends_nonbrand <- read_csv(
