@@ -1351,3 +1351,48 @@ write_csv(
   intervalos_p6,
   "Punto6_Intervalos_Confianza.csv"
 )
+
+
+# =====================================
+# PUNTO 7 - DOS CAMINOS PARA EXAMINAR LOS PICOS DE TEMPORADA ALTA
+# =====================================
+
+# Camino A: Transformación logarítmica de la variable dependiente (Sales y Orders)
+modelo_log_sales <- lm(
+  log(Sales) ~ Amazon_DSP_Cost + Amazon_Search_Cost + Amazon_Sponsored_Cost +
+    SP500 + WEI + Brand + NonBrand + ICSA + GASREGW,
+  data = datos_p7
+)
+
+modelo_log_orders <- lm(
+  log(Orders) ~ Amazon_DSP_Cost + Amazon_Search_Cost + Amazon_Sponsored_Cost +
+    SP500 + WEI + Brand + NonBrand + ICSA + GASREGW,
+  data = datos_p7
+)
+
+summary(modelo_log_sales)
+summary(modelo_log_orders)
+
+# Camino B: Variables indicadoras (Dummies) de temporada alta
+# Identificación de semanas con picos superiores al percentil 85 de ventas
+umbral_pico <- quantile(datos_p7$Sales, 0.85)
+
+datos_p7 <- datos_p7 |>
+  mutate(
+    Temporada_Alta = if_else(Sales > umbral_pico, 1, 0)
+  )
+
+modelo_dummy_sales <- lm(
+  Sales ~ Amazon_DSP_Cost + Amazon_Search_Cost + Amazon_Sponsored_Cost +
+    SP500 + WEI + Brand + NonBrand + ICSA + GASREGW + Temporada_Alta,
+  data = datos_p7
+)
+
+modelo_dummy_orders <- lm(
+  Orders ~ Amazon_DSP_Cost + Amazon_Search_Cost + Amazon_Sponsored_Cost +
+    SP500 + WEI + Brand + NonBrand + ICSA + GASREGW + Temporada_Alta,
+  data = datos_p7
+)
+
+summary(modelo_dummy_sales)
+summary(modelo_dummy_orders)
