@@ -1352,7 +1352,6 @@ write_csv(
 # PUNTO 7 - DOS CAMINOS PARA EXAMINAR LOS PICOS DE TEMPORADA ALTA
 # =====================================
 
-# 1. Vincular correctamente la base limpia del punto 6 y conservar la columna Week
 datos_p7 <- datos_modelos |>
   mutate(Week = datos_p6 |> drop_na(all_of(variables_p6)) |> pull(Week))
 
@@ -1401,7 +1400,7 @@ summary(modelo_dummy_orders)
 # PUNTO 8 - DIAGNOSTICO Y MEJORA
 # =====================================
 
-library(car) # Para VIF y pruebas de heterocedasticidad
+library(car) 
 library(lmtest)
 
 # 1. Evaluación de Multicolinealidad (VIF)
